@@ -18,6 +18,8 @@ streamlit run app.py
 | `streamlit` | All UI rendering |
 | `dotenv.load_dotenv` | Load `.env` file at startup |
 | `src.logger.get_logger` | Structured file + console logging |
+| `src.graph.create_review_graph` | Builds the compiled LangGraph pipeline at import time |
+| `src.graph.ReviewState` | TypedDict used to construct the initial state dict |
 
 ## Key Functions
 
@@ -54,7 +56,7 @@ Main area
   │
   └─ On click:
         1. check_ollama()  ← pre-flight
-        2. Import src.graph (deferred to avoid slow startup)
+        2. create_review_graph() → compiled graph
         3. Stream graph nodes → update progress bar + step indicators
         4. render_results(final_state)
 ```
@@ -75,3 +77,42 @@ STEPS = [
 ```
 
 Each step maps to a LangGraph node name and a display label shown in the progress UI.
+
+## Graph Usage
+
+`create_review_graph` and `ReviewState` are imported at the top level (module load time).
+
+When **Analyze** is clicked, the graph is instantiated and streamed:
+
+```python
+graph = create_review_graph()
+
+initial_state: ReviewState = {
+    "url": url.strip(),
+    "model_name": model_name,
+    "paper_metadata": {},
+    "paper_text": "",
+    "abstract": "",
+    "sections": {},
+    "consistency_result": {},
+    "grammar_result": {},
+    "novelty_result": {},
+    "fact_check_result": {},
+    "authenticity_result": {},
+    "final_report": "",
+    "current_step": "starting",
+    "error": None,
+}
+
+for step_output in graph.stream(initial_state):
+    node_name = list(step_output.keys())[0]   # e.g. "scrape", "consistency"
+    state_update = step_output[node_name]      # partial state dict from that node
+    final_state.update(state_update)           # accumulated into final_state
+```
+
+Each iteration of `graph.stream()` yields one node's output. The UI:
+- Advances the progress bar (`len(completed) / len(STEPS)`)
+- Marks finished steps ✅ and the next step 🔄 in the step indicator row
+- Updates the status banner with the last completed node name
+
+After the loop, `render_results(final_state)` displays all agent results.

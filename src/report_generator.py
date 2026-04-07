@@ -5,14 +5,15 @@ Markdown "Judgement Report" suitable for download or display.
 
 from __future__ import annotations
 from datetime import date
-from typing import TYPE_CHECKING, Any, Dict
-
+from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .graph import ReviewState
 
 
-def _score_bar(score: int, width: int = 20) -> str:
-    """Return a simple ASCII progress bar for a 0-100 score."""
+def _score_bar(score, width: int = 20) -> str:
+    """Return a simple ASCII progress bar for a 0-100 score, or 'N/A' if score is None."""
+    if score is None:
+        return "N/A"
     filled = round(score * width / 100)
     return f"[{'█' * filled}{'░' * (width - filled)}] {score}/100"
 
@@ -28,42 +29,49 @@ def _overall_verdict(state: "ReviewState") -> tuple[str, str, int]:
     f  = state.get("fact_check_result",    {})
     a  = state.get("authenticity_result",  {})
 
-    consistency_score  = c.get("score",                   50)
-    grammar_score      = g.get("grammar_score",           70)
-    novelty_score      = n.get("novelty_score",           60)
-    fact_score         = f.get("fact_check_score",        70)
-    fabrication_prob   = a.get("fabrication_probability", 20)
-    recommendation     = a.get("recommendation",          "Minor Revision")
+    consistency_score  = c.get("score")
+    grammar_score      = g.get("grammar_score")
+    novelty_score      = n.get("novelty_score")
+    fact_score         = f.get("fact_check_score")
+    fabrication_prob   = a.get("fabrication_probability")
+    recommendation     = a.get("recommendation")
 
-    # Weighted composite (fabrication is an inverse metric)
-    composite = (
-        consistency_score * 0.25
-        + grammar_score   * 0.10
-        + novelty_score   * 0.20
-        + fact_score      * 0.20
-        + (100 - fabrication_prob) * 0.25
-    )
+    # Weighted composite — only include dimensions the model actually returned
+    weighted_sum   = 0.0
+    total_weight   = 0.0
+    _contributions = [
+        (consistency_score,              0.25),
+        (grammar_score,                  0.10),
+        (novelty_score,                  0.20),
+        (fact_score,                     0.20),
+        (None if fabrication_prob is None else 100 - fabrication_prob, 0.25),
+    ]
+    for value, weight in _contributions:
+        if value is not None:
+            weighted_sum  += value * weight
+            total_weight  += weight
+
+    composite = (weighted_sum / total_weight * 1.0) if total_weight > 0 else 0.0
+
+    rec_label = recommendation or "N/A"
 
     if composite >= 70 and recommendation in ("Accept", "Minor Revision"):
         verdict = "PASS"
-        color_hint = "green"
         explanation = (
             f"The paper meets the minimum quality bar (composite score: {composite:.1f}/100). "
-            f"Recommendation: {recommendation}."
+            f"Recommendation: {rec_label}."
         )
     elif composite >= 50:
         verdict = "CONDITIONAL PASS"
-        color_hint = "orange"
         explanation = (
             f"The paper has significant strengths but requires revisions "
-            f"(composite score: {composite:.1f}/100). Recommendation: {recommendation}."
+            f"(composite score: {composite:.1f}/100). Recommendation: {rec_label}."
         )
     else:
         verdict = "FAIL"
-        color_hint = "red"
         explanation = (
             f"The paper does not meet the quality bar (composite score: {composite:.1f}/100). "
-            f"Recommendation: {recommendation}."
+            f"Recommendation: {rec_label}."
         )
 
     return verdict, explanation, round(composite)
@@ -144,7 +152,7 @@ def generate_report(state: "ReviewState") -> str:
         f"| Grammar | {g.get('grammar_score', 'N/A')}/100 |",
         f"| Novelty | {n.get('novelty_score', 'N/A')}/100 |",
         f"| Fact-Check | {f.get('fact_check_score', 'N/A')}/100 |",
-        f"| Authenticity (Integrity) | {100 - a.get('fabrication_probability', 20)}/100 |",
+        f"| Authenticity (Integrity) | {(100 - a['fabrication_probability']) if a.get('fabrication_probability') is not None else 'N/A'}/100 |",
         f"| **Composite** | **{composite}/100** |",
         "",
         "---",
@@ -157,7 +165,7 @@ def generate_report(state: "ReviewState") -> str:
     lines += [
         "## 1. Consistency Analysis",
         "",
-        f"**Score:** {_score_bar(c.get('score', 50))}  ",
+        f"**Score:** {_score_bar(c.get('score'))}  ",
         f"**Verdict:** `{c.get('verdict', 'N/A')}`",
         "",
         _safe_explanation(c),
@@ -186,9 +194,9 @@ def generate_report(state: "ReviewState") -> str:
         "## 2. Grammar & Language Quality",
         "",
         f"**Overall Rating:** `{g.get('rating', 'N/A')}`  ",
-        f"**Grammar Score:** {_score_bar(g.get('grammar_score', 70))}  ",
-        f"**Clarity Score:** {_score_bar(g.get('clarity_score', 70))}  ",
-        f"**Academic Tone:** {_score_bar(g.get('tone_score', 70))}",
+        f"**Grammar Score:** {_score_bar(g.get('grammar_score'))}  ",
+        f"**Clarity Score:** {_score_bar(g.get('clarity_score'))}  ",
+        f"**Academic Tone:** {_score_bar(g.get('tone_score'))}",
         "",
         _safe_explanation(g),
         "",
@@ -218,7 +226,7 @@ def generate_report(state: "ReviewState") -> str:
         "## 3. Novelty Assessment",
         "",
         f"**Novelty Index:** `{n.get('novelty_index', 'N/A')}`  ",
-        f"**Novelty Score:** {_score_bar(n.get('novelty_score', 60))}",
+        f"**Novelty Score:** {_score_bar(n.get('novelty_score'))}",
         "",
         _safe_explanation(n),
         "",
@@ -251,8 +259,8 @@ def generate_report(state: "ReviewState") -> str:
     lines += [
         "## 4. Fact-Check Log",
         "",
-        f"**Fact-Check Score:** {_score_bar(f.get('fact_check_score', 70))}  ",
-        f"**Total Claims Examined:** {f.get('total_claims_checked', 0)}",
+        f"**Fact-Check Score:** {_score_bar(f.get('fact_check_score'))}  ",
+        f"**Total Claims Examined:** {f.get('total_claims_checked', 'N/A')}",
         "",
         _safe_explanation(f, f.get("summary", "_No summary provided._")),
         "",
@@ -282,13 +290,13 @@ def generate_report(state: "ReviewState") -> str:
     # -----------------------------------------------------------------------
     # 5. Authenticity / Fabrication Score
     # -----------------------------------------------------------------------
-    fab_prob    = a.get("fabrication_probability", 20)
-    repro_score = a.get("reproducibility_score", 70)
+    fab_prob    = a.get("fabrication_probability")
+    repro_score = a.get("reproducibility_score")
 
     lines += [
         "## 5. Authenticity & Integrity Assessment",
         "",
-        f"**Fabrication Probability:** {fab_prob}% risk  ",
+        f"**Fabrication Probability:** {f'{fab_prob}% risk' if fab_prob is not None else 'N/A'}  ",
         f"**Risk Level:** `{a.get('risk_level', 'N/A')}`  ",
         f"**Reproducibility Score:** {_score_bar(repro_score)}",
         "",
@@ -318,7 +326,7 @@ def generate_report(state: "ReviewState") -> str:
     lines += [
         "## Final Recommendation",
         "",
-        f"**Decision:** `{a.get('recommendation', 'Minor Revision')}`",
+        f"**Decision:** `{a.get('recommendation', 'N/A')}`",
         "",
         f"**Overall Verdict:** `{verdict}`",
         "",

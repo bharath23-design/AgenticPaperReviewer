@@ -11,11 +11,38 @@ from ..logger import get_logger
 _log = get_logger(__name__)
 
 
+_STOPWORDS = {
+    "a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
+    "do", "does", "did", "have", "has", "had", "will", "would", "could",
+    "should", "may", "might", "shall", "can", "need", "dare", "ought",
+    "and", "or", "but", "if", "in", "on", "at", "to", "for", "of", "with",
+    "by", "from", "up", "about", "into", "through", "during", "all", "you",
+    "we", "it", "its", "this", "that", "these", "those", "not", "no", "nor",
+}
+
+
+def _build_query(title: str, categories: list[str]) -> str:
+    """
+    Build a meaningful arXiv search query from the paper title and categories.
+
+    Strategy:
+    - Strip common stopwords so generic title phrases (e.g. "Is All You Need")
+      don't dominate the query.
+    - Take up to 6 meaningful title keywords.
+    - Append the primary arXiv category (e.g. cs.CL) to bias results toward
+      the same research area.
+    """
+    keywords = [w for w in title.split() if w.lower() not in _STOPWORDS][:6]
+    query = " ".join(keywords)
+    if categories:
+        query += f" cat:{categories[0]}"
+    return query
+
+
 def _search_related_papers(title: str, categories: list[str], max_results: int = 8) -> list[dict]:
-    """Search arXiv for papers related to the given title."""
-    # Build a concise query from the first 8 words of the title
-    words = title.split()[:8]
-    query = " ".join(words)
+    """Search arXiv for papers related to the given title and categories."""
+    query = _build_query(title, categories)
+    _log.debug("arXiv related-paper query: %s", query)
 
     client = arxiv.Client()
     search = arxiv.Search(

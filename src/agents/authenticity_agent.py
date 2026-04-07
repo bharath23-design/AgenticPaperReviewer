@@ -74,13 +74,16 @@ Respond with ONLY a valid JSON object (no markdown, no extra text):
         # Validate risk level
         valid_risks = {"Low", "Medium", "High", "Critical"}
         if result.get("risk_level") not in valid_risks:
-            prob = result.get("fabrication_probability", 20)
-            result["risk_level"] = (
-                "Critical" if prob >= 75 else
-                "High"     if prob >= 50 else
-                "Medium"   if prob >= 25 else
-                "Low"
-            )
+            prob = result.get("fabrication_probability")
+            if prob is not None:
+                result["risk_level"] = (
+                    "Critical" if prob >= 75 else
+                    "High"     if prob >= 50 else
+                    "Medium"   if prob >= 25 else
+                    "Low"
+                )
+            else:
+                result["risk_level"] = None
 
         # Validate recommendation
         valid_recs = {"Accept", "Minor Revision", "Major Revision", "Reject"}

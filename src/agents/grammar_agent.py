@@ -58,9 +58,11 @@ Respond with ONLY a valid JSON object (no markdown, no extra text):
         # Validate rating
         valid_ratings = {"High", "Medium", "Low"}
         if result.get("rating") not in valid_ratings:
-            # Derive from grammar_score
-            score = result.get("grammar_score", 70)
-            result["rating"] = "High" if score >= 75 else ("Medium" if score >= 50 else "Low")
+            score = result.get("grammar_score")
+            if score is not None:
+                result["rating"] = "High" if score >= 75 else ("Medium" if score >= 50 else "Low")
+            else:
+                result["rating"] = None
 
         for field in ("grammar_score", "clarity_score", "tone_score"):
             try:

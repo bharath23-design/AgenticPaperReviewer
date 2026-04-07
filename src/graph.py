@@ -141,14 +141,29 @@ def node_report(state: ReviewState) -> dict:
 # Safe wrappers (so one agent failure doesn't crash the graph)
 # ---------------------------------------------------------------------------
 
-def safe_scrape(state):       return _safe_run("scrape",       node_scrape,       state)
-def safe_decompose(state):    return _safe_run("decompose",    node_decompose,    state)
-def safe_consistency(state):  return _safe_run("consistency",  node_consistency,  state)
-def safe_grammar(state):      return _safe_run("grammar",      node_grammar,      state)
-def safe_novelty(state):      return _safe_run("novelty",      node_novelty,      state)
-def safe_fact_check(state):   return _safe_run("fact_check",   node_fact_check,   state)
-def safe_authenticity(state): return _safe_run("authenticity", node_authenticity, state)
-def safe_report(state):       return _safe_run("report",       node_report,       state)
+def safe_scrape(state):      
+    return _safe_run("scrape",       node_scrape,       state)
+
+def safe_decompose(state):    
+    return _safe_run("decompose",    node_decompose,    state)
+
+def safe_consistency(state):  
+    return _safe_run("consistency",  node_consistency,  state)
+
+def safe_grammar(state):      
+    return _safe_run("grammar",      node_grammar,      state)
+
+def safe_novelty(state):      
+    return _safe_run("novelty",      node_novelty,      state)
+
+def safe_fact_check(state):   
+    return _safe_run("fact_check",   node_fact_check,   state)
+
+def safe_authenticity(state): 
+    return _safe_run("authenticity", node_authenticity, state)
+
+def safe_report(state):       
+    return _safe_run("report",       node_report,       state)
 
 
 # ---------------------------------------------------------------------------

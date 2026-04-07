@@ -9,6 +9,7 @@ import requests
 import streamlit as st
 from dotenv import load_dotenv
 from src.logger import get_logger
+from src.graph import create_review_graph, ReviewState
 
 log = get_logger("app")
 
@@ -187,18 +188,18 @@ def render_results(state: dict):
     st.markdown("")
 
     # Score cards
-    fab_prob = a.get("fabrication_probability", 20)
+    fab_prob = a.get("fabrication_probability")
     scores = {
-        "Consistency":  c.get("score", 0),
-        "Grammar":      g.get("grammar_score", 0),
-        "Novelty":      n.get("novelty_score", 0),
-        "Fact-Check":   f.get("fact_check_score", 0),
-        "Integrity":    100 - fab_prob,
+        "Consistency":  c.get("score"),
+        "Grammar":      g.get("grammar_score"),
+        "Novelty":      n.get("novelty_score"),
+        "Fact-Check":   f.get("fact_check_score"),
+        "Integrity":    (100 - fab_prob) if fab_prob is not None else None,
     }
 
     cols = st.columns(5)
     for col, (label, score) in zip(cols, scores.items()):
-        col.metric(label=label, value=f"{score}/100")
+        col.metric(label=label, value=f"{score}/100" if score is not None else "N/A")
 
     st.markdown("---")
 
@@ -271,11 +272,11 @@ def render_results(state: dict):
                 st.markdown(f"- ❓ {item.get('claim', '')} — _{item.get('note', '')}_")
 
     with tab5:
-        fab  = a.get("fabrication_probability", 0)
-        repro = a.get("reproducibility_score", 0)
+        fab  = a.get("fabrication_probability")
+        repro = a.get("reproducibility_score")
         col1, col2 = st.columns(2)
-        col1.metric("Fabrication Risk", f"{fab}%")
-        col2.metric("Reproducibility", f"{repro}/100")
+        col1.metric("Fabrication Risk", f"{fab}%" if fab is not None else "N/A")
+        col2.metric("Reproducibility", f"{repro}/100" if repro is not None else "N/A")
         st.markdown(f"**Risk Level:** `{a.get('risk_level', 'N/A')}`")
         st.markdown(f"**Recommendation:** `{a.get('recommendation', 'N/A')}`")
         st.markdown(a.get("explanation", ""))
@@ -313,8 +314,7 @@ if analyze_clicked:
         st.stop()
     log.info("Ollama pre-flight passed — model=%s url=%s", model_name, url.strip())
 
-    # Import graph here to avoid slow startup
-    from src.graph import create_review_graph, ReviewState
+    
 
     graph = create_review_graph()
 

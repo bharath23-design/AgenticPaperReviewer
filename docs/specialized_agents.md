@@ -56,7 +56,7 @@ Evaluates writing quality, clarity, academic tone, and technical precision.
 | `positive_aspects` | list[str] | Writing strengths (max 3) |
 | `explanation` | str | 2–3 sentence summary |
 
-`rating` is derived from `grammar_score` if the LLM returns an invalid value.
+`rating` is derived from `grammar_score` if the LLM returns an invalid value. If `grammar_score` is also `None`, `rating` is set to `None` rather than a hardcoded default.
 
 ---
 
@@ -70,11 +70,24 @@ Evaluates writing quality, clarity, academic tone, and technical precision.
 | `.base_agent.BaseAgent` | Shared LLM + JSON utilities |
 | `..logger.get_logger` | Module-level logger |
 
+### Internal helpers
+
+#### `_build_query(title, categories) -> str`
+Builds the arXiv search query:
+1. Splits the title into words and removes common stopwords (`is`, `all`, `you`, `need`, `are`, `the`, etc.) so generic title phrases don't dominate the query.
+2. Takes up to 6 remaining keywords.
+3. Appends the primary arXiv category (e.g. `cat:cs.CL`) to bias results toward the same research area.
+
+Example — *"Attention Is All You Need"* → `Attention cat:cs.CL` (stopwords stripped, category appended).
+
+#### `_search_related_papers(title, categories, max_results) -> list[dict]`
+Calls `_build_query`, runs the arXiv search sorted by relevance, and returns up to `max_results` papers with keys `title`, `abstract` (first 300 chars), `published`, `arxiv_id`.
+
 ### `analyze(sections: dict, metadata: dict) -> dict`
 
 Searches arXiv for related work (no LLM cost), then asks the LLM to judge uniqueness.
 
-**arXiv search:** uses the first 8 words of the paper title, retrieves up to 6 results sorted by relevance.
+**arXiv search:** uses `_build_query` — meaningful title keywords + primary category — retrieves up to 6 results sorted by relevance.
 
 **Output keys:**
 
@@ -108,7 +121,7 @@ Identifies and classifies factual claims as verified, questionable, or unverifia
 | `verified_claims` | list[dict] | `{claim, status, note}` each |
 | `questionable_claims` | list[dict] | Same structure |
 | `unverifiable_claims` | list[dict] | Same structure |
-| `total_claims_checked` | int | Auto-computed if not set by LLM |
+| `total_claims_checked` | int | Always recomputed from actual claim lists — model's own count is ignored |
 | `fact_check_score` | int 0–100 | 100 = all claims verified |
 | `summary` | str | 2–3 sentence assessment |
 
@@ -137,4 +150,4 @@ Estimates fabrication probability and overall research integrity.
 | `explanation` | str | 2–3 sentence integrity assessment |
 | `recommendation` | str | `Accept` / `Minor Revision` / `Major Revision` / `Reject` |
 
-`risk_level` and `recommendation` are validated and corrected if LLM returns out-of-range values.
+`risk_level` is derived from `fabrication_probability` if the LLM returns an invalid value. If `fabrication_probability` is also `None`, `risk_level` is set to `None`. `recommendation` is validated against `{Accept, Minor Revision, Major Revision, Reject}`.

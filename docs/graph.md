@@ -42,17 +42,85 @@ class ReviewState(TypedDict):
 
 ## Graph Topology
 
+```mermaid
+flowchart TD
+    A([START]) --> B[scrape\nsafe_scrape]
+    B --> C[decompose\nsafe_decompose]
+    C --> D[consistency\nsafe_consistency]
+    D --> E[grammar\nsafe_grammar]
+    E --> F[novelty\nsafe_novelty]
+    F --> G[fact_check\nsafe_fact_check]
+    G --> H[authenticity\nsafe_authenticity]
+    H --> I[report\nsafe_report]
+    I --> J([END])
+
+    B:::node
+    C:::node
+    D:::agent
+    E:::agent
+    F:::agent
+    G:::agent
+    H:::agent
+    I:::node
+
+    classDef node fill:#2d6a9f,color:#fff,rx:6
+    classDef agent fill:#1a7a4a,color:#fff,rx:6
 ```
-START
-  → scrape       (safe_scrape)
-  → decompose    (safe_decompose)
-  → consistency  (safe_consistency)
-  → grammar      (safe_grammar)
-  → novelty      (safe_novelty)
-  → fact_check   (safe_fact_check)
-  → authenticity (safe_authenticity)
-  → report       (safe_report)
-END
+
+> **Blue nodes** — data pipeline (scrape, decompose, report).  
+> **Green nodes** — LLM analysis agents (each calls Ollama once).
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        ReviewState                          │
+│  url · model_name · paper_metadata · paper_text · abstract  │
+│  sections · consistency_result · grammar_result             │
+│  novelty_result · fact_check_result · authenticity_result   │
+│  final_report · current_step · error                        │
+└─────────────────────────────────────────────────────────────┘
+         │
+         ▼
+   ┌──────────┐     scrape_paper()        arXiv API + HTML
+   │  scrape  │ ─────────────────────────────────────────────▶
+   └──────────┘
+         │
+         ▼
+   ┌────────────┐   decompose_paper()     regex → LLM fallback
+   │  decompose │ ─────────────────────────────────────────────▶
+   └────────────┘
+         │
+         ▼
+   ┌─────────────┐  ConsistencyAgent      Ollama (JSON mode)
+   │ consistency │ ─────────────────────────────────────────────▶
+   └─────────────┘
+         │
+         ▼
+   ┌─────────┐       GrammarAgent         Ollama (JSON mode)
+   │ grammar │ ─────────────────────────────────────────────────▶
+   └─────────┘
+         │
+         ▼
+   ┌─────────┐       NoveltyAgent         arXiv search + Ollama
+   │ novelty │ ─────────────────────────────────────────────────▶
+   └─────────┘
+         │
+         ▼
+   ┌────────────┐    FactCheckAgent       Ollama (JSON mode)
+   │ fact_check │ ───────────────────────────────────────────────▶
+   └────────────┘
+         │
+         ▼
+   ┌──────────────┐  AuthenticityAgent    Ollama (JSON mode)
+   │ authenticity │ ───────────────────────────────────────────▶
+   └──────────────┘
+         │
+         ▼
+   ┌────────┐        generate_report()    pure Python → Markdown
+   │ report │ ─────────────────────────────────────────────────▶
+   └────────┘
+         │
+         ▼
+       END
 ```
 
 All nodes are wrapped with `_safe_run` so a single agent failure captures the error in `state["error"]` instead of crashing the graph.

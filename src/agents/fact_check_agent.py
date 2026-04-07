@@ -72,12 +72,11 @@ Respond with ONLY a valid JSON object (no markdown, no extra text):
         except (TypeError, ValueError):
             result["fact_check_score"] = 70
 
-        # Compute total if not set
-        if not result.get("total_claims_checked"):
-            result["total_claims_checked"] = (
-                len(result.get("verified_claims", []))
-                + len(result.get("questionable_claims", []))
-                + len(result.get("unverifiable_claims", []))
-            )
+        # Always recompute from actual lists — don't trust the model's count
+        result["total_claims_checked"] = (
+            len(result.get("verified_claims", []))
+            + len(result.get("questionable_claims", []))
+            + len(result.get("unverifiable_claims", []))
+        )
 
         return result
