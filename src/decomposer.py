@@ -8,9 +8,9 @@ Strategy:
      on a truncated version (≤12 k tokens).
 """
 
+import json
 import re
 from typing import Dict
-
 from .logger import get_logger
 
 log = get_logger(__name__)
@@ -108,7 +108,6 @@ If a section is not present, set its value to an empty string.
 PAPER TEXT:
 {truncated}
 """
-    import json
     response = llm.invoke(prompt)
     content = response.content
 

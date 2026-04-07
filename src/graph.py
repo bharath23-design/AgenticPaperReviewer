@@ -15,14 +15,11 @@ Graph topology (sequential):
 """
 
 from __future__ import annotations
-
 import time
 import traceback
 from typing import Any, Dict, Optional, TypedDict
-
 from langchain_ollama import ChatOllama
 from langgraph.graph import END, START, StateGraph
-
 from .agents.authenticity_agent import AuthenticityAgent
 from .agents.consistency_agent import ConsistencyAgent
 from .agents.fact_check_agent import FactCheckAgent

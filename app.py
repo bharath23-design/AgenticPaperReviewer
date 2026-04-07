@@ -4,12 +4,10 @@ Run with: streamlit run app.py
 """
 
 import os
-import re
-
+import traceback
 import requests
 import streamlit as st
 from dotenv import load_dotenv
-
 from src.logger import get_logger
 
 log = get_logger("app")
@@ -404,7 +402,6 @@ if analyze_clicked:
         friendly = _friendly_error(str(e))
         st.error(f"Unexpected error: {friendly}")
         with st.expander("Full error details"):
-            import traceback
             st.code(traceback.format_exc(), language="text")
 
 elif not analyze_clicked:

@@ -4,11 +4,9 @@ Falls back gracefully: HTML version → abstract page → raw abstract.
 """
 
 import re
-
 import arxiv
 import requests
 from bs4 import BeautifulSoup
-
 from .logger import get_logger
 
 log = get_logger(__name__)

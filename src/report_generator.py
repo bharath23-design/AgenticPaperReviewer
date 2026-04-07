@@ -4,7 +4,6 @@ Markdown "Judgement Report" suitable for download or display.
 """
 
 from __future__ import annotations
-
 from datetime import date
 from typing import TYPE_CHECKING, Any, Dict
 
